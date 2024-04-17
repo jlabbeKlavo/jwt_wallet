@@ -59,9 +59,9 @@ export class ImportRootKeyInput {
 
 @JSON
 export class ImportPrivateKeyInput {
-    format: string;         // raw, pkcs8, spki, jwk
-    keyData: string;        // base64 encoded
-    algorithm: string;      // RSA, ECDSA, AES
+    format: i32;         // 0:raw, 1:spki, 2:pkcs8, 3:jwk
+    keyData: string;     // base64 encoded
+    algorithm: i32;      // 0:ECC256, 1:AES128GCM, 2:SHA256
     extractable: boolean;
 }
 

@@ -123,7 +123,7 @@ export class Key {
         return true;
     }
 
-    importPrivateKey(format: string, keyData: string, algorithm: string, extractable: boolean) : boolean {
+    importPrivateKey(format: i32, keyData: string, algorithm: i32, extractable: boolean) : boolean {
         if (this.type == "ECDSA") {
             this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
             this.type = "ECDSA";

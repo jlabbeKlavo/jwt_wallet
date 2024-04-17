@@ -94,7 +94,7 @@ export class Wallet {
     /**
      * Import a private key to the wallet.
      */
-    importPrivateKey(format: string, keyData: string, algorithm: string, extractable: boolean): void {
+    importPrivateKey(format: i32, keyData: string, algorithm: i32, extractable: boolean): void {
         let key = new Key("");
         key.importPrivateKey(format, keyData, algorithm, extractable);
         this.keys.push(key.id);
