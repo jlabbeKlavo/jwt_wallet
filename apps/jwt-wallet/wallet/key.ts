@@ -128,7 +128,8 @@ export class Key {
             this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
             this.type = "ECDSA";
             this.description = "publicKey_" + this.type + "_" + this.id;
-            return Crypto.ECDSA.importPrivateKey(this.id, format, keyData, algorithm, extractable);
+            Crypto.ECDSA.importPrivateKey(this.id, format, keyData, algorithm, extractable);
+            return true;
         }
         else {
             revert(`ERROR: Key type '${this.type}' is not supported`);
