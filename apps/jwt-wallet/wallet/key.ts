@@ -1,4 +1,4 @@
-import { Ledger, Crypto, JSON, Context } from '@klave/sdk'
+import { Ledger, Crypto, JSON } from '@klave/sdk'
 import { emit, revert } from "../klave/types"
 import { SignInput, VerifyInput, sign, verify } from "../klave/crypto";
 import { encode as b64encode, decode as b64decode } from 'as-base64/assembly';
@@ -133,16 +133,6 @@ export class Key {
         else {
             revert(`ERROR: Key type '${this.type}' is not supported`);
             return false;
-        }
-    }
-
-    export(keyId: string, format: string) : string {
-        if (this.type == "ECDSA") {
-            return Crypto.ECDSA.getPrivateKey(keyId, format);
-        }
-        else {
-            revert(`ERROR: Key type '${this.type}' is not supported`);
-            return "";
         }
     }
 }

@@ -1,5 +1,5 @@
 import { JSON } from "@klave/sdk"
-import { RenameWalletInput, CreateWalletInput, SignInput, VerifyInput, AddUserInput, AddKeyInput, ListKeysInput, ResetInput, RemoveKeyInput, RemoveUserInput, ImportKeyInput, JWTHeader, JWTPayload} from "./wallet/inputs/types";
+import { RenameWalletInput, CreateWalletInput, SignInput, VerifyInput, AddKeyInput, RemoveKeyInput, JWTHeader, JWTPayload, ImportPrivateKeyInput, ImportRootKeyInput} from "./wallet/inputs/types";
 import { Wallet } from "./wallet/wallet";
 import { emit, revert } from "./klave/types";
 import { decode } from 'as-base64/assembly';
@@ -18,12 +18,12 @@ const _checkJWT = function(jwt: string): JWTPayload | null {
     if (!wallet) {
         return null;
     }
-    let jwtHeader = JSON.parse<JWTHeader>(decode(items[0]));
+    let jwtHeader : JWTHeader = JSON.parse<JWTHeader>(decode(items[0]).toString());
     if (!wallet.verifyInput(jwtHeader, items[1], items[2])) {
         revert("Invalid JWT signature");
         return null;
     }
-    let jwtPayload = JSON.parse<JWTPayload>(decode(items[1]));
+    let jwtPayload = JSON.parse<JWTPayload>(decode(items[1]).toString());
     return jwtPayload;
 }
 
@@ -52,26 +52,47 @@ export function addKey(jwt: string): void {
 }
 
 /**
- * @transaction import a key to the wallet
+ * @transaction import a private key to the wallet
  * @param input containing the following fields:
  * - description: string
  * - type: string
  * @returns success boolean
  */
-export function importKey(jwt: string): void {
+export function importRootKey(jwt: string): void {
     let jwtPayload = _checkJWT(jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload.payload);
+    let input: ImportRootKeyInput = JSON.parse<ImportRootKeyInput>(jwtPayload.payload);
 
     let wallet = Wallet.load();
     if (!wallet) {
         return;
     }
-    if (wallet.importKey(input.format, input.keyData, input.algorithm, input.extractable, input.keyUsages)) {
-        wallet.save();
+    wallet.importRootKey(input.keyData);
+    wallet.save();
+}
+
+/**
+ * @transaction import a private key to the wallet
+ * @param input containing the following fields:
+ * - description: string
+ * - type: string
+ * @returns success boolean
+ */
+export function importPrivateKey(jwt: string): void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
     }
+    let input: ImportPrivateKeyInput = JSON.parse<ImportPrivateKeyInput>(jwtPayload.payload);
+
+    let wallet = Wallet.load();
+    if (!wallet) {
+        return;
+    }
+    wallet.importPrivateKey(input.format, input.keyData, input.algorithm, input.extractable);
+    wallet.save();
 }
 
 /**
@@ -80,7 +101,13 @@ export function importKey(jwt: string): void {
  * - keyId: string
  * @returns success boolean
  */
-export function removeKey(input: RemoveKeyInput): void {
+export function removeKey(jwt: string): void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: RemoveKeyInput = JSON.parse<RemoveKeyInput>(jwtPayload.payload);
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
@@ -96,12 +123,18 @@ export function removeKey(input: RemoveKeyInput): void {
  * - user: string, the user to list the keys for (optional)
  * @returns the list of keys
  */
-export function listKeys(input: ListKeysInput): void {
+export function listKeys(jwt: string): void {
+    //Payload should be empty but we need to check the signature
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
     }
-    wallet.listKeys(input.user);
+    wallet.listKeys();
 }
 
 /**
@@ -111,7 +144,13 @@ export function listKeys(input: ListKeysInput): void {
  * - payload: string
  * @returns success boolean and the created text
  */
-export function sign(input: SignInput) : void {
+export function sign(jwt: string) : void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
@@ -132,7 +171,13 @@ export function sign(input: SignInput) : void {
  * - signature: string
  * @returns success boolean
  */
-export function verify(input: VerifyInput) : void {
+export function verify(jwt: string) : void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: VerifyInput = JSON.parse<VerifyInput>(jwtPayload.payload);
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
@@ -152,7 +197,13 @@ export function verify(input: VerifyInput) : void {
  * - payload: string
  * @returns success boolean and the crypted message
  */
-export function encrypt(input: SignInput): void {
+export function encrypt(jwt: string): void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
@@ -172,7 +223,13 @@ export function encrypt(input: SignInput): void {
  * - payload: string
  * @returns success boolean and text decyphered
  */
-export function decrypt(input: SignInput): void {
+export function decrypt(jwt: string): void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+
     let wallet = Wallet.load();
     if (!wallet) {
         return;
@@ -183,39 +240,6 @@ export function decrypt(input: SignInput): void {
         return;
     }
     emit(decrypted);
-}
-
-/**
- * @transaction add a user to the wallet
- * @param input containing the following fields:
- * - userId: string
- * - role: string, "admin" or "user"
- * @returns success boolean
- */
-export function addUser(input: AddUserInput): void {
-    let wallet = Wallet.load();
-    if (!wallet) {
-        return;
-    }
-    if (wallet.addUser(input.userId, input.role, false)) {
-        wallet.save();
-    }
-}
-
-/**
- * @transaction remove a user from the wallet
- * @param input containing the following fields:
- * - userId: string
- * @returns success boolean
- */
-export function removeUser(input: RemoveUserInput): void {
-    let wallet = Wallet.load();
-    if (!wallet) {
-        return;
-    }
-    if (wallet.removeUser(input.userId)) {
-        wallet.save();
-    }
 }
 
 /**
@@ -232,36 +256,6 @@ export function createWallet(input: CreateWalletInput): void {
     }
     let wallet = new Wallet();
     wallet.create(input.name);
+    wallet.importRootKey(input.rootKeyData);
     wallet.save();
 }
-
-// /**
-//  * @transaction rename the wallet
-//  * @param input containing the following fields:
-//  * - oldName: string
-//  * - newName: string
-//  * @returns success boolean
-//  */
-// export function renameWallet(input: RenameWalletInput): void {
-//     let wallet = Wallet.load();
-//     if (!wallet) {
-//         return;
-//     }
-//     wallet.rename(input.oldName, input.newName);
-//     wallet.save();
-// }
-
-// /**
-//  * @transaction clears the wallet
-//  * @param input containing the following fields:
-//  * - keys: string[], the keys to remove (optional)
-//  * @returns success boolean
-//  */
-// export function reset(input: ResetInput): void {
-//     let wallet = Wallet.load();
-//     if (!wallet) {
-//         return;
-//     }
-//     wallet.reset(input.keys);
-//     wallet.save();
-// }

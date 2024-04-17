@@ -3,9 +3,9 @@ import { emit, revert } from "../klave/types";
 import { Key } from "./key";
 import { User } from "./user";
 import { JWTHeader } from "./inputs/types";
+import { encode } from 'as-base64/assembly';
 
 const WalletTable = "WalletTable";
-const RootKey = "ALL";
 
 /**
  * An Wallet is associated with a list of users and holds keys.
@@ -14,12 +14,11 @@ const RootKey = "ALL";
 export class Wallet {
     name: string;
     keys: Array<string>;
-    users: Array<string>;
+    rootKeyId: string;
 
     constructor() {
         this.name = "";
         this.keys = new Array<string>();
-        this.users = new Array<string>();
     }
 
     /**
@@ -51,11 +50,6 @@ export class Wallet {
      * @param newName
      */
     rename(oldName: string, newName: string): void {
-        if (!this.senderIsAdmin())
-        {
-            revert("You are not allowed to rename the wallet");
-            return;
-        }
         if (this.name != oldName) {
             revert("Wallet name does not match");
             return;
@@ -71,7 +65,6 @@ export class Wallet {
      */
     create(name: string): void {
         this.name = name;
-        this.addUser(Context.get('sender'), "admin", true);
         emit("Wallet created successfully: " + this.name);
         return;
     }
@@ -80,39 +73,20 @@ export class Wallet {
      * Import a key to the wallet.
      */
     importRootKey(keyData: string): void {
-        let key = new Key(RootKey);
+        let key = new Key("");
         key.importPublicKey(keyData);
-        this.keys.push(key.id);
+        this.rootKeyId = key.id;
         emit("Root Key imported successfully: " + key.id);
     }
 
     /**
      * Import a key to the wallet.
      */
-    importKey(format: string, keyData: string, algorithm: string, extractable: boolean): void {
+    importPrivateKey(format: string, keyData: string, algorithm: string, extractable: boolean): void {
         let key = new Key("");
         key.importPrivateKey(format, keyData, algorithm, extractable);
         this.keys.push(key.id);
         emit("Key imported successfully: " + key.id);
-    }
-
-    /**
-     * Export a key from the wallet.
-     */
-    exportKey(keyId: string): Key | null {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to export a key");
-            return null;
-        }
-        let key = Key.load(keyId);
-        if (!key) {
-            return null;
-        }
-        let index = this.keys.indexOf(keyId);
-        this.keys.splice(index, 1);
-        emit("Key exported successfully: " + key.id);
-        return key;
     }
 
     /**
@@ -123,97 +97,19 @@ export class Wallet {
             revert("Only ECDSA algorithm is supported");
             return false;
         }
-        let key = Key.load(RootKey);
+        let key = Key.load(this.rootKeyId);
         if (!key) {
+            revert("Root key not found");
             return false;
         }
         return key.verify(payload, signature);
     }
 
     /**
-     * Add a user to the wallet.
-     * @param userId The id of the user to add.
-     * @param role The role of the user to add.
-     */
-    addUser(userId: string, role: string, force: boolean): boolean {
-        if (!force && !this.senderIsAdmin())
-        {
-            revert("You are not allowed to add a user");
-            return false;
-        }
-
-        let existingUser = User.load(userId);
-        if (existingUser) {
-            revert("User already exists: " + userId);
-            return false;
-        }
-        let user = new User(userId);
-        user.role = role;
-        user.save();
-        this.users.push(userId);
-        emit("User added successfully: " + userId);
-        return true;
-    }
-
-    /**
-     * Remove a user from the wallet.
-     * @param userId The id of the user to remove.
-     */
-    removeUser(userId: string): boolean {
-        if (!this.senderIsAdmin())
-        {
-            revert("You are not allowed to remove a user");
-            return false;
-        }
-
-        let user = User.load(userId);
-        if (!user) {
-            revert("User not found: " + userId);
-            return false;
-        }
-        user.delete();
-
-        let index = this.users.indexOf(userId);
-        this.users.splice(index, 1);
-        emit("User removed successfully: " + userId);
-        return true;
-    }
-
-    /**
-     * Check if the sender is an admin.
-     * @returns True if the sender is an admin, false otherwise.
-     */
-    senderIsAdmin(): boolean {
-        let user = User.load(Context.get('sender'));
-        if (!user) {
-            return false;
-        }
-        return user.role == "admin";
-    }
-
-    /**
-     * Check if the sender is registered.
-     * @returns True if the sender is registered, false otherwise.
-     */
-    senderIsRegistered(): boolean {
-        let user = User.load(Context.get('sender'));
-        if (!user) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * list all the keys in the wallet.
      * @returns
      */
-    listKeys(user: string): void {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to list the keys in the wallet");
-            return;
-        }
-
+    listKeys(): void {
         let keys: string = "";
         for (let i = 0; i < this.keys.length; i++) {
             let key = this.keys[i];
@@ -225,9 +121,7 @@ export class Wallet {
             if (keys.length > 0) {
                 keys += ", ";
             }
-            if (user.length == 0 || keyObj.owner == user) {
-                keys += JSON.stringify<Key>(keyObj);
-            }
+            keys += JSON.stringify<Key>(keyObj);
         }
         if (keys.length == 0) {
             emit(`No keys found in the wallet`);
@@ -240,16 +134,9 @@ export class Wallet {
      * @returns
      */
     reset(keys: Array<string>): void {
-        if (!this.senderIsAdmin())
-        {
-            revert("You are not allowed to reset the wallet");
-            return;
-        }
-
         if (keys.length == 0) {
             this.name = "";
             this.keys = new Array<string>();
-            this.users = new Array<string>();
             emit("Wallet reset successfully");
          } else {
             for (let i = 0; i < keys.length; i++) {
@@ -269,11 +156,6 @@ export class Wallet {
      * @param payload The message to sign.
      */
     sign(keyId: string, payload: string): string | null {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to sign a message/access this wallet");
-            return null;
-        }
         let key = Key.load(keyId);
         if (!key) {
             return null;
@@ -288,11 +170,6 @@ export class Wallet {
      * @param signature The signature to verify.
      */
     verify(keyId: string, payload: string, signature: string): boolean {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to verify a signature/access this wallet");
-            return false;
-        }
         let key = Key.load(keyId);
         if (!key) {
             return false;
@@ -306,11 +183,6 @@ export class Wallet {
      * @param type The type of the key.
      */
     addKey(description: string, type: string): boolean {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to add a key/access this wallet");
-            return false;
-        }
         let key = new Key("");
         key.create(description, type);
         key.save();
@@ -324,11 +196,6 @@ export class Wallet {
      * @param keyId The id of the key to remove.
      */
     removeKey(keyId: string): boolean {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to remove a key/access this wallet");
-            return false;
-        }
         let key = Key.load(keyId);
         if (!key) {
             return false;
@@ -344,11 +211,6 @@ export class Wallet {
      * encrypt a message with the given key.
      */
     encrypt(keyId: string, message: string): string | null {
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to encrypt a message/access this wallet");
-            return null;
-        }
         let key = Key.load(keyId);
         if (!key) {
             return null;
@@ -360,11 +222,6 @@ export class Wallet {
      * encrypt a message with the given key.
      */
     decrypt(keyId:string, cypher: string): string | null{
-        if (!this.senderIsRegistered())
-        {
-            revert("You are not allowed to encrypt a message/access this wallet");
-            return null;
-        }
         let key = Key.load(keyId);
         if (!key) {
             return null;
