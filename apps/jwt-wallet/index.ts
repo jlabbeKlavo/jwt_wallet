@@ -53,9 +53,8 @@ export function addKey(jwt: string): void {
 
 /**
  * @transaction import a private key to the wallet
- * @param input containing the following fields:
- * - description: string
- * - type: string
+ * @param input containing a jwt string with a payload containing the following fields:
+ * - keyData: string
  * @returns success boolean
  */
 export function importRootKey(jwt: string): void {
@@ -74,10 +73,33 @@ export function importRootKey(jwt: string): void {
 }
 
 /**
+ * @transaction import a public key to the wallet
+ * @param input containing a jwt string with a payload containing the following fields:
+ * - keyData: string
+ * @returns success boolean
+ */
+export function importPublicKey(jwt: string): void {
+    let jwtPayload = _checkJWT(jwt);
+    if (!jwtPayload) {
+        return;
+    }
+    let input: ImportRootKeyInput = JSON.parse<ImportRootKeyInput>(jwtPayload.payload);
+
+    let wallet = Wallet.load();
+    if (!wallet) {
+        return;
+    }
+    wallet.importPublicKey(input.keyData);
+    wallet.save();
+}
+
+/**
  * @transaction import a private key to the wallet
- * @param input containing the following fields:
- * - description: string
- * - type: string
+ * @param input containing a jwt string with a payload containing the following fields:
+ * - format: string
+ * - keyData: string
+ * - algorithm: string
+ * - extractable: boolean
  * @returns success boolean
  */
 export function importPrivateKey(jwt: string): void {

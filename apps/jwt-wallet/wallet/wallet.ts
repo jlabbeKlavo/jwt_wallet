@@ -19,6 +19,7 @@ export class Wallet {
     constructor() {
         this.name = "";
         this.keys = new Array<string>();
+        this.rootKeyId = "";
     }
 
     /**
@@ -70,7 +71,7 @@ export class Wallet {
     }
 
     /**
-     * Import a key to the wallet.
+     * Import a root key to the wallet.
      */
     importRootKey(keyData: string): void {
         let key = new Key("");
@@ -80,13 +81,24 @@ export class Wallet {
     }
 
     /**
-     * Import a key to the wallet.
+     * Import a public key to the wallet.
+     */
+    importPublicKey(keyData: string): void {
+        let key = new Key("");
+        key.importPublicKey(keyData);
+        this.keys.push(key.id);
+        emit("Public Key imported successfully: " + key.id);
+    }
+
+
+    /**
+     * Import a private key to the wallet.
      */
     importPrivateKey(format: string, keyData: string, algorithm: string, extractable: boolean): void {
         let key = new Key("");
         key.importPrivateKey(format, keyData, algorithm, extractable);
         this.keys.push(key.id);
-        emit("Key imported successfully: " + key.id);
+        emit("Private Key imported successfully: " + key.id);
     }
 
     /**
