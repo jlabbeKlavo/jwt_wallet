@@ -1,5 +1,5 @@
 import { JSON } from "@klave/sdk"
-import { RenameWalletInput, CreateWalletInput, SignInput, VerifyInput, AddKeyInput, RemoveKeyInput, JWTHeader, JWTPayload, ImportPrivateKeyInput, ImportRootKeyInput} from "./wallet/inputs/types";
+import { CreateWalletInput, SignInput, VerifyInput, RemoveKeyInput, JWTHeader, JWTPayload, GenerateKeyInput, ImportKeyInput} from "./wallet/inputs/types";
 import { Wallet } from "./wallet/wallet";
 import { emit, revert } from "./klave/types";
 import { decode } from 'as-base64/assembly';
@@ -30,17 +30,17 @@ const _checkJWT = function(jwt: string): JWTPayload | null {
 
 /**
  * @transaction add a key to the wallet
- * @param input containing the following fields:
+ * @param input containing a jwt string with a payload containing the following fields:
  * - description: string
- * - type: string
+ * - key: KeyInput
  * @returns success boolean
  */
-export function addKey(jwt: string): void {
+export function generateKey(jwt: string): void {
     let jwtPayload = _checkJWT(jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: AddKeyInput = JSON.parse<AddKeyInput>(jwtPayload.payload);
+    let input: GenerateKeyInput = JSON.parse<GenerateKeyInput>(jwtPayload.payload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -54,7 +54,8 @@ export function addKey(jwt: string): void {
 /**
  * @transaction import a private key to the wallet
  * @param input containing a jwt string with a payload containing the following fields:
- * - keyData: string
+ * - description: string
+ * - key: KeyInput
  * @returns success boolean
  */
 export function importRootKey(jwt: string): void {
@@ -62,58 +63,35 @@ export function importRootKey(jwt: string): void {
     if (!jwtPayload) {
         return;
     }
-    let input: ImportRootKeyInput = JSON.parse<ImportRootKeyInput>(jwtPayload.payload);
+    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload.payload);
 
     let wallet = Wallet.load();
     if (!wallet) {
         return;
     }
-    wallet.importRootKey(input.keyData);
-    wallet.save();
-}
-
-/**
- * @transaction import a public key to the wallet
- * @param input containing a jwt string with a payload containing the following fields:
- * - keyData: string
- * @returns success boolean
- */
-export function importPublicKey(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
-    if (!jwtPayload) {
-        return;
-    }
-    let input: ImportRootKeyInput = JSON.parse<ImportRootKeyInput>(jwtPayload.payload);
-
-    let wallet = Wallet.load();
-    if (!wallet) {
-        return;
-    }
-    wallet.importPublicKey(input.keyData);
+    wallet.importRootKey(input.key.format, input.key.keyData, input.key.algorithm, input.key.extractable, input.key.usages);
     wallet.save();
 }
 
 /**
  * @transaction import a private key to the wallet
  * @param input containing a jwt string with a payload containing the following fields:
- * - format: string
- * - keyData: string
- * - algorithm: string
- * - extractable: boolean
+ * - description: string
+ * - key: KeyInput
  * @returns success boolean
  */
-export function importPrivateKey(jwt: string): void {
+export function importKey(jwt: string): void {
     let jwtPayload = _checkJWT(jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: ImportPrivateKeyInput = JSON.parse<ImportPrivateKeyInput>(jwtPayload.payload);
+    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload.payload);
 
     let wallet = Wallet.load();
     if (!wallet) {
         return;
     }
-    wallet.importPrivateKey(input.format, input.keyData, input.algorithm, input.extractable);
+    wallet.importKey(input.description, input.key.format, input.key.keyData, input.key.algorithm, input.key.extractable, input.key.usages);
     wallet.save();
 }
 
@@ -278,6 +256,6 @@ export function createWallet(input: CreateWalletInput): void {
     }
     let wallet = new Wallet();
     wallet.create(input.name);
-    wallet.importRootKey(input.rootKeyData);
+    wallet.importRootKey(input.rootKey.key.format, input.rootKey.key.keyData, input.rootKey.key.algorithm, input.rootKey.key.extractable, input.rootKey.key.usages);
     wallet.save();
 }

@@ -9,13 +9,13 @@ const KeysTable = "KeysTable";
 @JSON
 export class Key {
     id: string;
-    description: string;
     type: string;
+    description: string;
 
     constructor(id: string) {
         this.id = id;
-        this.description = "";
         this.type = "";
+        this.description = "";
     }
 
     static load(keyId: string) : Key | null {
@@ -37,8 +37,8 @@ export class Key {
 
     create(description: string, type: string): boolean {
         this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
-        this.description = description;
         this.type = type;
+        this.description = description;
         if (this.type == "ECDSA") {
             const key = Crypto.ECDSA.generateKey(this.id);
             if (key) {
@@ -112,27 +112,22 @@ export class Key {
         return KeyAES.decrypt(convertToU8Array(b64decode(cypher)));
     }
 
-    importPublicKey(keyData: string) : boolean {
-        if (this.id != "") {
+    import(description: string, format: string, keyData: string, algorithm: string, extractable: boolean, usages: string[]) : boolean {
+        if (algorithm == "ECDSA") {
             this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
-        }
-        this.type = "ECDSA";
-        this.description = "publicKey_" + this.type + "_" + this.id;
-
-        Crypto.ECDSA.importPublicKey(this.id, keyData);
-        return true;
-    }
-
-    importPrivateKey(format: i32, keyData: string, algorithm: i32, extractable: boolean) : boolean {
-        if (this.type == "ECDSA") {
-            this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
-            this.type = "ECDSA";
-            this.description = "publicKey_" + this.type + "_" + this.id;
-            Crypto.ECDSA.importPrivateKey(this.id, format, keyData, algorithm, extractable);
-            return true;
+            this.type = algorithm;
+            this.description = description;
+            let key = Crypto.ECDSA.importKey(format, keyData, extractable, usages, this.id);
+            if (key) {
+                emit(`SUCCESS: Key '${this.id}' has been imported`);
+                return true;
+            } else {
+                revert(`ERROR: Key '${this.id}' has not been imported`);
+                return false;
+            }
         }
         else {
-            revert(`ERROR: Key type '${this.type}' is not supported`);
+            revert(`ERROR: Key type '${algorithm}' is not supported`);
             return false;
         }
     }

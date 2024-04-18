@@ -19,7 +19,7 @@ export class RenameWalletInput {
 @JSON
 export class CreateWalletInput {
     name: string;
-    rootKeyData: string;
+    rootKey: ImportKeyInput;
 }
 
 @JSON
@@ -47,22 +47,18 @@ export class RemoveUserInput {
 }
 
 @JSON
-export class AddKeyInput {
-    description: string;
-    type: string;
-}
-
-@JSON
-export class ImportRootKeyInput {
-    keyData: string;        // base64 encoded
-}
-
-@JSON
-export class ImportPrivateKeyInput {
-    format: i32;         // 0:raw, 1:spki, 2:pkcs8, 3:jwk
+export class KeyInput {
+    format: string;         // 0:raw, 1:spki, 2:pkcs8, 3:jwk
     keyData: string;     // base64 encoded
-    algorithm: i32;      // 0:ECC256, 1:AES128GCM, 2:SHA256
+    algorithm: string;      // 0:ECC256, 1:AES128GCM, 2:SHA256
     extractable: boolean;
+    usages: string[];
+}
+
+@JSON
+export class ImportKeyInput {
+    description: string;
+    key: KeyInput;
 }
 
 @JSON

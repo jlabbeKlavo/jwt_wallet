@@ -73,32 +73,25 @@ export class Wallet {
     /**
      * Import a root key to the wallet.
      */
-    importRootKey(keyData: string): void {
+    importRootKey(format: string, keyData: string, algorithm: string, extractable: boolean, usages: string[]): void {
         let key = new Key("");
-        key.importPublicKey(keyData);
+        if (key.import("rootKey", format, keyData, algorithm, extractable, usages)) {
+            key.save();
+        }
         this.rootKeyId = key.id;
         emit("Root Key imported successfully: " + key.id);
     }
 
     /**
-     * Import a public key to the wallet.
+     * Import a public/private key to the wallet.
      */
-    importPublicKey(keyData: string): void {
+    importKey(description: string, format: string, keyData: string, algorithm: string, extractable: boolean, usages: string[]): void {
         let key = new Key("");
-        key.importPublicKey(keyData);
+        if (key.import(description, format, keyData, algorithm, extractable, usages)) {
+            key.save();
+        }
         this.keys.push(key.id);
-        emit("Public Key imported successfully: " + key.id);
-    }
-
-
-    /**
-     * Import a private key to the wallet.
-     */
-    importPrivateKey(format: i32, keyData: string, algorithm: i32, extractable: boolean): void {
-        let key = new Key("");
-        key.importPrivateKey(format, keyData, algorithm, extractable);
-        this.keys.push(key.id);
-        emit("Private Key imported successfully: " + key.id);
+        emit("Key imported successfully: " + key.id);
     }
 
     /**
@@ -196,8 +189,9 @@ export class Wallet {
      */
     addKey(description: string, type: string): boolean {
         let key = new Key("");
-        key.create(description, type);
-        key.save();
+        if (key.create(description, type)) {
+            key.save();
+        }
 
         this.keys.push(key.id);
         return true;
