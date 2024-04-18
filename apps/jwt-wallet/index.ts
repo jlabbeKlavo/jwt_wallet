@@ -1,5 +1,5 @@
 import { JSON } from "@klave/sdk"
-import { CreateWalletInput, SignInput, VerifyInput, RemoveKeyInput, JWTHeader, JWTPayload, GenerateKeyInput, ImportKeyInput} from "./wallet/inputs/types";
+import { CreateWalletInput, SignInput, VerifyInput, RemoveKeyInput, JWTHeader, JWTPayload, ImportKeyInput, GenerateKeyInput, KeyInput} from "./wallet/inputs/types";
 import { Wallet } from "./wallet/wallet";
 import { emit, revert } from "./klave/types";
 import { decode } from 'as-base64/assembly';
@@ -46,7 +46,7 @@ export function generateKey(jwt: string): void {
     if (!wallet) {
         return;
     }
-    if (wallet.addKey(input.description, input.type)) {
+    if (wallet.generateKey(input.description, input.algorithm)) {
         wallet.save();
     }
 }
@@ -63,13 +63,13 @@ export function importRootKey(jwt: string): void {
     if (!jwtPayload) {
         return;
     }
-    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload.payload);
+    let input: KeyInput = JSON.parse<KeyInput>(jwtPayload.payload);
 
     let wallet = Wallet.load();
     if (!wallet) {
         return;
     }
-    wallet.importRootKey(input.key.format, input.key.keyData, input.key.algorithm, input.key.extractable, input.key.usages);
+    wallet.importRootKey(input.format, input.keyData, input.algorithm, input.extractable, input.usages);
     wallet.save();
 }
 

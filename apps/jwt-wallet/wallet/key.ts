@@ -35,9 +35,9 @@ export class Key {
         emit(`User saved successfully: '${this.id}'`);
     }
 
-    create(description: string, type: string): boolean {
+    create(description: string, algorithm: string) : boolean {
         this.id = b64encode(convertToUint8Array(Crypto.getRandomValues(64)));
-        this.type = type;
+        this.type = algorithm;
         this.description = description;
         if (this.type == "ECDSA") {
             const key = Crypto.ECDSA.generateKey(this.id);

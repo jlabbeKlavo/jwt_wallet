@@ -48,9 +48,9 @@ export class RemoveUserInput {
 
 @JSON
 export class KeyInput {
-    format: string;         // 0:raw, 1:spki, 2:pkcs8, 3:jwk
-    keyData: string;     // base64 encoded
-    algorithm: string;      // 0:ECC256, 1:AES128GCM, 2:SHA256
+    format: string;         // raw, spki, pkcs8, jwk
+    keyData: string;        // base64 encoded
+    algorithm: string;      // ECDSA, AES-GCM, RSA-PSS,
     extractable: boolean;
     usages: string[];
 }
@@ -65,6 +65,12 @@ export class ImportKeyInput {
 export class ExportKeyInput {
     keyId: string;
     format: string;         // raw, pkcs8, spki, jwk
+}
+
+@JSON
+export class GenerateKeyInput {
+    description: string;
+    algorithm: string;      // ECDSA, AES-GCM, RSA-PSS,
 }
 
 @JSON

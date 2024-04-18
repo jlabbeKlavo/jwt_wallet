@@ -187,9 +187,9 @@ export class Wallet {
      * @param description The description of the key.
      * @param type The type of the key.
      */
-    addKey(description: string, type: string): boolean {
+    generateKey(description: string, algorithm: string): boolean {
         let key = new Key("");
-        if (key.create(description, type)) {
+        if (key.create(description, algorithm)) {
             key.save();
         }
 
