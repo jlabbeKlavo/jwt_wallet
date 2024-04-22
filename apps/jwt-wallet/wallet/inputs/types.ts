@@ -1,13 +1,24 @@
 import { JSON } from "@klave/sdk";
 
 @JSON
+export class JWTInput {
+    jwt!: string; 
+}
+
+@JSON
 export class JWTHeader {
-    algorithm: string;      // RSA, ECDSA, AES
+    alg!: string;      // RSA, ECDSA, AES
 }
 
 @JSON
 export class JWTPayload {
     payload: string;
+}
+
+@JSON
+export class JWTGenerateInput {
+    keyId!: string;
+    payload!: string;
 }
 
 @JSON

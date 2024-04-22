@@ -77,9 +77,8 @@ export class Wallet {
         let key = new Key("");
         if (key.import("rootKey", format, keyData, algorithm, extractable, usages)) {
             key.save();
+            this.rootKeyId = key.id;
         }
-        this.rootKeyId = key.id;
-        emit("Root Key imported successfully: " + key.id);
     }
 
     /**
@@ -89,16 +88,15 @@ export class Wallet {
         let key = new Key("");
         if (key.import(description, format, keyData, algorithm, extractable, usages)) {
             key.save();
+            this.keys.push(key.id);
         }
-        this.keys.push(key.id);
-        emit("Key imported successfully: " + key.id);
     }
 
     /**
      * Verify a signature with the given key.
      */
-    verifyInput(jwtHeader: JWTHeader, payload: string, signature: string): boolean {
-        if (jwtHeader.algorithm != "ECDSA") {
+    verifyInput(algorithm: string, payload: string, signature: string): boolean {
+        if (algorithm != "ECDSA") {
             revert("Only ECDSA algorithm is supported");
             return false;
         }
@@ -233,6 +231,5 @@ export class Wallet {
             return null;
         }
         return key.decrypt(cypher);
-    }
-
+    }        
 }

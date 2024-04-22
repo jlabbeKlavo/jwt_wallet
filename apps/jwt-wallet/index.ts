@@ -1,13 +1,13 @@
-import { JSON } from "@klave/sdk"
-import { CreateWalletInput, SignInput, VerifyInput, RemoveKeyInput, JWTHeader, JWTPayload, ImportKeyInput, GenerateKeyInput, KeyInput} from "./wallet/inputs/types";
+import { JSON, Utils } from "@klave/sdk"
+import { CreateWalletInput, SignInput, VerifyInput, RemoveKeyInput, JWTHeader, JWTPayload, ImportKeyInput, GenerateKeyInput, KeyInput, JWTInput, JWTGenerateInput} from "./wallet/inputs/types";
 import { Wallet } from "./wallet/wallet";
 import { emit, revert } from "./klave/types";
-import { decode } from 'as-base64/assembly';
+import { decode, encode } from 'as-base64/assembly';
 
 /**
  * check the jwt token
  */
-const _checkJWT = function(jwt: string): JWTPayload | null {
+const _checkJWT = function(jwt: string): string | null {
      let items = jwt.split(".");
     if (items.length != 3) {
         revert("Invalid JWT format");
@@ -18,13 +18,24 @@ const _checkJWT = function(jwt: string): JWTPayload | null {
     if (!wallet) {
         return null;
     }
-    let jwtHeader : JWTHeader = JSON.parse<JWTHeader>(decode(items[0]).toString());
-    if (!wallet.verifyInput(jwtHeader, items[1], items[2])) {
+    let jwtHeaderU8 = decode(items[0]);
+    let jwtHeaderStr: string = String.UTF8.decode(jwtHeaderU8.buffer, true);
+    jwtHeaderStr = jwtHeaderStr.replace("\\", "");
+    emit("jwtHeaderStr: " + jwtHeaderStr);
+    let jwtPayloadU8 = decode(items[1]);
+    let jwtPayloadStr: string = String.UTF8.decode(jwtPayloadU8.buffer, true);
+    jwtPayloadStr = jwtPayloadStr.replace("\\", "");
+    emit("jwtPayloadStr: " + jwtPayloadStr);
+
+    let jwtHeader : JWTHeader = JSON.parse<JWTHeader>(jwtHeaderStr);
+    emit("jwtHeader: " + jwtHeader.alg + " - " + items[0] + "." + items[1] + " - " + items[2]);
+
+    if (!wallet.verifyInput(jwtHeader.alg, items[0] + "." + items[1], items[2])) {
         revert("Invalid JWT signature");
         return null;
-    }
-    let jwtPayload = JSON.parse<JWTPayload>(decode(items[1]).toString());
-    return jwtPayload;
+    }    
+    emit("Verification Successful");
+    return jwtPayloadStr;
 }
 
 
@@ -35,12 +46,12 @@ const _checkJWT = function(jwt: string): JWTPayload | null {
  * - key: KeyInput
  * @returns success boolean
  */
-export function generateKey(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function generateKey(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: GenerateKeyInput = JSON.parse<GenerateKeyInput>(jwtPayload.payload);
+    let input: GenerateKeyInput = JSON.parse<GenerateKeyInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -58,12 +69,12 @@ export function generateKey(jwt: string): void {
  * - key: KeyInput
  * @returns success boolean
  */
-export function importRootKey(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function importRootKey(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: KeyInput = JSON.parse<KeyInput>(jwtPayload.payload);
+    let input: KeyInput = JSON.parse<KeyInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -80,12 +91,12 @@ export function importRootKey(jwt: string): void {
  * - key: KeyInput
  * @returns success boolean
  */
-export function importKey(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function importKey(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload.payload);
+    let input: ImportKeyInput = JSON.parse<ImportKeyInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -101,12 +112,12 @@ export function importKey(jwt: string): void {
  * - keyId: string
  * @returns success boolean
  */
-export function removeKey(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function removeKey(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: RemoveKeyInput = JSON.parse<RemoveKeyInput>(jwtPayload.payload);
+    let input: RemoveKeyInput = JSON.parse<RemoveKeyInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -123,9 +134,9 @@ export function removeKey(jwt: string): void {
  * - user: string, the user to list the keys for (optional)
  * @returns the list of keys
  */
-export function listKeys(jwt: string): void {
+export function listKeys(jwt_input: JWTInput): void {
     //Payload should be empty but we need to check the signature
-    let jwtPayload = _checkJWT(jwt);
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
@@ -144,12 +155,12 @@ export function listKeys(jwt: string): void {
  * - payload: string
  * @returns success boolean and the created text
  */
-export function sign(jwt: string) : void {
-    let jwtPayload = _checkJWT(jwt);
+export function sign(jwt_input: JWTInput) : void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -171,12 +182,12 @@ export function sign(jwt: string) : void {
  * - signature: string
  * @returns success boolean
  */
-export function verify(jwt: string) : void {
-    let jwtPayload = _checkJWT(jwt);
+export function verify(jwt_input: JWTInput) : void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: VerifyInput = JSON.parse<VerifyInput>(jwtPayload.payload);
+    let input: VerifyInput = JSON.parse<VerifyInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -197,12 +208,12 @@ export function verify(jwt: string) : void {
  * - payload: string
  * @returns success boolean and the crypted message
  */
-export function encrypt(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function encrypt(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {
@@ -223,12 +234,12 @@ export function encrypt(jwt: string): void {
  * - payload: string
  * @returns success boolean and text decyphered
  */
-export function decrypt(jwt: string): void {
-    let jwtPayload = _checkJWT(jwt);
+export function decrypt(jwt_input: JWTInput): void {
+    let jwtPayload = _checkJWT(jwt_input.jwt);
     if (!jwtPayload) {
         return;
     }
-    let input: SignInput = JSON.parse<SignInput>(jwtPayload.payload);
+    let input: SignInput = JSON.parse<SignInput>(jwtPayload);
 
     let wallet = Wallet.load();
     if (!wallet) {

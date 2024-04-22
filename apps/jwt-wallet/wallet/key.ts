@@ -32,7 +32,7 @@ export class Key {
     save(): void {
         let keyTable = JSON.stringify<Key>(this);
         Ledger.getTable(KeysTable).set(this.id, keyTable);
-        emit(`User saved successfully: '${this.id}'`);
+        emit(`Key saved successfully: '${this.id}'`);
     }
 
     create(description: string, algorithm: string) : boolean {
